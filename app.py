@@ -1,10 +1,5 @@
 import sys
 import asyncio
-
-if sys.platform == 'win32':
-    try: asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    except AttributeError: pass
-
 import streamlit as st
 import pandas as pd
 import folium
@@ -12,12 +7,16 @@ from streamlit_folium import st_folium
 import sqlite3
 import os
 
+if sys.platform == 'win32':
+    try: asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except AttributeError: pass
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from api.main import run_nightly_triage
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 
-st.set_page_config(page_title="Aquara", layout="wide")
+st.set_page_config(page_title="Aquara Triage", layout="wide")
 
 def init_db():
     conn = sqlite3.connect("mock_utility.db")
@@ -54,12 +53,69 @@ st.markdown("""
 .header-title { font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;}
 .header-sub { font-size: 13px; font-weight: 500; color: #ffffff; letter-spacing: 0.05em; margin-top: 2px; }
 .section-label { font-size: 15px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 2px solid white; padding-bottom: 6px; margin-bottom: 12px; margin-top: 10px;}
+
+/* Global Button Styles */
 .stButton > button { width: 100% !important; font-size: 13px !important; font-weight: 700 !important; text-transform: uppercase !important; color: #083040 !important; border-radius: 7px !important; padding: 6px !important; border-top: 1.5px solid rgba(255,255,255,0.95) !important; background: linear-gradient(175deg, rgba(255,255,255,0.92) 0%, rgba(155,238,255,0.8) 55%, rgba(207,248,255,0.88) 100%) !important; }
 .stDownloadButton > button { background: linear-gradient(175deg, rgba(255,255,255,0.92) 0%, rgba(167,243,208,0.82) 55%, rgba(209,250,229,0.9) 100%) !important; border-color: rgba(16,185,129,0.35) !important; color: #033d1c !important; width: 100%; font-weight: 700 !important;}
 
-div[data-testid="stFileUploader"] section small, div[data-testid="stFileUploaderDropzone"] small, div[data-testid="stFileUploadDropzone"] div div small, div[data-testid="stUploadDropzoneDescription"] div:last-child, .stFileUploader section div div small { display: none !important; opacity: 0 !important; height: 0px !important; visibility: hidden !important; font-size: 0px !important; }
-[data-testid="stFileUploadDropzone"]::after { content: "Drag and drop telemetry files here\\A (Hardware Limit: 2 KB per file)" !important; white-space: pre-wrap !important; font-size: 14px !important; color: #ffffff !important; font-weight: 700 !important; display: block !important; line-height: 1.5 !important; }
-[data-testid="stFileUploadDropzone"] { border: 2px dashed #18c5e8 !important; border-radius: 8px !important; background: rgba(8, 48, 64, 0.75) !important; padding: 24px 8px !important; text-align: center !important; display: block !important; }
+/* 🌟 UNIVERSAL FILE UPLOADER FIXES 🌟 */
+/* Nuke the 1MB text no matter where Streamlit tries to hide it */
+.stFileUploader small {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    font-size: 0 !important;
+}
+
+/* Force the dropzone interior background to match the dark glass UI */
+.stFileUploader [data-testid="stFileUploadDropzone"] {
+    background-color: rgba(8, 48, 64, 0.75) !important;
+    border: 2px dashed #18c5e8 !important;
+    border-radius: 8px !important;
+    padding: 24px 10px !important;
+}
+
+/* Inject the custom instruction text */
+.stFileUploader [data-testid="stFileUploadDropzone"]::after {
+    content: "Drag and drop telemetry files here\\A (Hardware Limit: 2 KB per file)" !important;
+    white-space: pre-wrap !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    display: block !important;
+    margin-top: 12px !important;
+    text-align: center !important;
+}
+
+/* 🌟 FIX: Match the internal "Upload" button to the "Run Scoring Engine" button 🌟 */
+.stFileUploader button {
+    background: linear-gradient(175deg, rgba(255,255,255,0.92) 0%, rgba(155,238,255,0.8) 55%, rgba(207,248,255,0.88) 100%) !important;
+    border: 1px solid rgba(6,154,184,0.35) !important;
+    border-top: 1.5px solid rgba(255,255,255,0.95) !important;
+    border-radius: 7px !important;
+    padding: 6px 16px !important;
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.95), 0 2px 6px rgba(6,120,147,0.12) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Force the text and icon inside to be dark and bold */
+.stFileUploader button * {
+    color: #083040 !important;
+    fill: #083040 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 13px !important;
+}
+
+/* Hover effects matching the main button */
+.stFileUploader button:hover {
+    border-color: #ffffff !important;
+}
+.stFileUploader button:hover * {
+    color: #069ab8 !important;
+    fill: #069ab8 !important;
+}
 
 .status-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #ffffff; padding: 4px 0; font-weight: 700;}
 .dot { width: 8px; height: 8px; border-radius: 50%; } .dot-g { background: #10b981; } .dot-b { background: #18c5e8; } .dot-r { background: #ef4444; }
@@ -79,14 +135,13 @@ div[data-testid="stFileUploader"] section small, div[data-testid="stFileUploader
 """, unsafe_allow_html=True)
 
 conn = sqlite3.connect("mock_utility.db")
-# 🌟 FIX: We now use df_all for EVERYTHING. No filtering out 'CLEAR' status.
 df_all = pd.read_sql_query("SELECT * FROM triage_results WHERE status != 'INSPECTED'", conn)
 conn.close()
 
 st.markdown("""
 <div style="display:flex;align-items:center;gap:15px;margin-bottom:20px;">
     <div style="width:45px;height:45px;border-radius:50%;background:linear-gradient(135deg,rgba(82,220,247,0.7),rgba(6,120,147,0.9));border:1.5px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:22px;">💧</div>
-    <div><h1 class="header-title">Aquara</h1><div class="header-sub">Bringing Intelligence to Water Infrastructure</div></div>
+    <div><h1 class="header-title">Aquara Triage</h1><div class="header-sub">LEAK INTELLIGENCE COPILOT · AIR-GAPPED DEPLOYMENT</div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -95,6 +150,7 @@ col1, col2, col3 = st.columns([1.3, 2.4, 1.5], gap="medium")
 with col1:
     st.markdown('<div class="section-label">1. Data Ingestion</div>', unsafe_allow_html=True)
     uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True, label_visibility="collapsed")
+    st.caption("Accepted inputs: GIS Layers, SCADA Logs, or Reports. Strict Limit: **2 KB per file**.")
     
     oversized_detected = False
     if uploaded_files:
@@ -115,7 +171,7 @@ with col1:
             processing_status_box.markdown("""
                 <div style="background: rgba(24, 197, 232, 0.25); border: 2px solid #18c5e8; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
                     <h5 style='color: white; margin: 0; font-weight: 700;'>⚙ ENGINE PIPELINE ACTIVE</h5>
-                    <p style='color: #a0eeff; margin: 5px 0 0 0; font-size: 12px;'>Parsing telemetry logs for anomaly explanation reporting...</p>
+                    <p style='color: #a0eeff; margin: 5px 0 0 0; font-size: 12px;'>Parsing telemetry logs and querying Gemini API for anomaly explanation reporting...</p>
                 </div>
             """, unsafe_allow_html=True)
             with st.spinner("Executing analytical matrix..."): engine_status = run_nightly_triage()
@@ -140,12 +196,10 @@ with col2:
     st.markdown('<div class="section-label">High-Risk Zone Map</div>', unsafe_allow_html=True)
     m = folium.Map(location=[42.283, -71.226], zoom_start=13, tiles="CartoDB positron")
     
-    # 🌟 FIX: Use df_all to render map pins for every item
     if not df_all.empty:
         for _, row in df_all.iterrows():
             if pd.isna(row['lat']) or pd.isna(row['lon']): continue
             
-            # Add Blue coloring logic for Clear Zone pins
             if row['risk_score'] > 0.80: marker_color = "red"
             elif row['risk_score'] > 0.50: marker_color = "orange"
             else: marker_color = "blue"
@@ -161,7 +215,6 @@ with col3:
         with col_dl1: st.download_button(label="CSV Export", data=df_all.to_csv(index=False).encode("utf-8"), file_name="aquara_manifest.csv", mime="text/csv", use_container_width=True)
         with col_dl2: st.download_button(label="PDF Export", data=create_pdf_report(df_all), file_name="aquara_manifest.pdf", mime="application/pdf", use_container_width=True)
 
-        # 🌟 FIX: Use df_all to render the queue, and include Variance % in the UI
         queue_df = df_all.sort_values("risk_score", ascending=False)
         for idx, row in queue_df.iterrows():
             score = row["risk_score"]
@@ -169,7 +222,6 @@ with col3:
             elif score > 0.50: b_class, b_txt, b_color = ("badge-a", "Warning", "#f59e0b")
             else: b_class, b_txt, b_color = ("badge-g", "Clear", "#10b981")
             
-            # 🌟 FIX: Added the Variance UI element here
             st.markdown(f"""
                 <div class="queue-item">
                     <div class="qi-head">

@@ -4,10 +4,18 @@ import sqlite3
 import json
 import pandas as pd
 import geopandas as gpd
-from dotenv import load_dotenv
 
-load_dotenv()
+# 🌟 FIX: Make dotenv optional so the Cloud deployment doesn't crash
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # Safely ignore this on Streamlit Cloud
+
+# Ensure internal folders are discoverable
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from explainability.explainer import generate_explanation
 
 try:
     from explainability.explainer import generate_explanation
