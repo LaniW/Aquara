@@ -1,0 +1,12 @@
+geopandas
+pandas
+scikit-learn
+xgboost
+google-genai
+pydantic
+fastapi
+uvicorn
+streamlit
+folium
+streamlit-folium
+requests

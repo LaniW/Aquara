@@ -1,0 +1,4 @@
+junction_id,zone_id,install_year,material,soil_corrosivity,last_inspected
+J-001,Zone_A,1955,Cast Iron,High,2018-04-12
+J-002,Zone_A,1980,Ductile Iron,Medium,2021-08-30
+J-045,Zone_B,1940,Lead,High,2015-11-05

@@ -1,0 +1,7 @@
+{
+  "sensor_array": "North_Campus",
+  "readings": [
+    {"sensor_id": "AC-01", "timestamp": "03:15:00", "db_level": 85, "frequency_hz": 400, "classification_guess": "Traffic"},
+    {"sensor_id": "AC-02", "timestamp": "03:15:00", "db_level": 40, "frequency_hz": 1200, "classification_guess": "Continuous Hiss"}
+  ]
+}

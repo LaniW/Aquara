@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "zone_id": "Zone_A", "pressure_zone_psi": 65.0 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-71.240, 42.290], [-71.220, 42.290], 
+          [-71.220, 42.270], [-71.240, 42.270], 
+          [-71.240, 42.290]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "zone_id": "Zone_B", "pressure_zone_psi": 55.0 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-71.220, 42.270], [-71.200, 42.270], 
+          [-71.200, 42.250], [-71.220, 42.250], 
+          [-71.220, 42.270]
+        ]]
+      }
+    }
+  ]
+}
