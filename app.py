@@ -86,7 +86,7 @@ conn.close()
 st.markdown("""
 <div style="display:flex;align-items:center;gap:15px;margin-bottom:20px;">
     <div style="width:45px;height:45px;border-radius:50%;background:linear-gradient(135deg,rgba(82,220,247,0.7),rgba(6,120,147,0.9));border:1.5px solid rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;font-size:22px;">💧</div>
-    <div><h1 class="header-title">Aquara Triage</h1><div class="header-sub">Bringing Intelligence to Water Infrastructure</div></div>
+    <div><h1 class="header-title">Aquara</h1><div class="header-sub">Bringing Intelligence to Water Infrastructure</div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -115,7 +115,7 @@ with col1:
             processing_status_box.markdown("""
                 <div style="background: rgba(24, 197, 232, 0.25); border: 2px solid #18c5e8; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
                     <h5 style='color: white; margin: 0; font-weight: 700;'>⚙ ENGINE PIPELINE ACTIVE</h5>
-                    <p style='color: #a0eeff; margin: 5px 0 0 0; font-size: 12px;'>Parsing telemetry logs and querying Gemini API for anomaly explanation reporting...</p>
+                    <p style='color: #a0eeff; margin: 5px 0 0 0; font-size: 12px;'>Parsing telemetry logs for anomaly explanation reporting...</p>
                 </div>
             """, unsafe_allow_html=True)
             with st.spinner("Executing analytical matrix..."): engine_status = run_nightly_triage()
