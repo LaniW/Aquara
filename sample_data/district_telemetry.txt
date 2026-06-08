@@ -1,0 +1,4 @@
+# asset_id, zone_id, flow_gpm, db_level, latitude, longitude
+AC-LOW-91, Zone_Alpha, 12.4, 22.0, 42.275, -71.210
+SCADA-MID-44, Zone_Beta, 45.8, 40.0, 42.281, -71.221
+AC-CRIT-02, Zone_Gamma, 10.5, 88.5, 42.292, -71.248

@@ -2,6 +2,13 @@
   "readings": [
     {"timestamp": "2023-10-24T02:00:00Z", "zone_id": "Zone_A", "flow_gallons_per_min": 45.2},
     {"timestamp": "2023-10-24T03:00:00Z", "zone_id": "Zone_A", "flow_gallons_per_min": 48.1},
-    {"timestamp": "2023-10-24T03:00:00Z", "zone_id": "Zone_B", "flow_gallons_per_min": 0.5}
+    {"timestamp": "2023-10-24T03:00:00Z", "zone_id": "Zone_B", "flow_gallons_per_min": 0.5},
+    {
+      "timestamp": "2023-10-24T02:00:00Z", 
+      "zone_id": "Zone_North", 
+      "flow_gallons_per_min": 65.5,
+      "latitude": 42.298,
+      "longitude": -71.250
+    }
   ]
 }
