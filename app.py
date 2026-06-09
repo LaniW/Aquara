@@ -89,14 +89,32 @@ def create_pdf_report(dataframe):
         return f"PDF ERROR: {str(e)}"
 
 # ── DATABASE ─────────────────────────────────────────────────────────────────────
-def init_db():
-    conn = sqlite3.connect("mock_utility.db")
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS triage_results (junction_id TEXT, zone_id TEXT, risk_score REAL, lat REAL, lon REAL, explanation TEXT, work_order TEXT, status TEXT)")
+import shutil
+from datetime import datetime
+
+DB_PATH     = "mock_utility.db"
+ARCHIVE_DIR = "db_archive"
+
+def ensure_db():
+    """Ensure the triage table exists. Never wipes data — archiving is manual only."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("CREATE TABLE IF NOT EXISTS triage_results (junction_id TEXT, zone_id TEXT, risk_score REAL, lat REAL, lon REAL, explanation TEXT, work_order TEXT, status TEXT)")
     conn.commit()
     conn.close()
 
-init_db()
+def do_archive_and_clear():
+    """Copy current DB to db_archive/ then wipe the live table. Called explicitly
+    by the Clear & Archive button — never runs automatically on rerun."""
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    archive_path = os.path.join(ARCHIVE_DIR, "triage_results_last_run.db")
+    if os.path.exists(DB_PATH):
+        shutil.copy2(DB_PATH, archive_path)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DELETE FROM triage_results")
+    conn.commit()
+    conn.close()
+
+ensure_db()
 
 CUSTOM_KB_LIMIT = 2
 
@@ -874,12 +892,12 @@ st.markdown("""
         <div class="stat-label">Gallons Lost / yr</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">2 Mins</div>
-        <div class="stat-label">Average Water Main Break</div>
+        <div class="stat-num">94%</div>
+        <div class="stat-label">Detection Accuracy</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">$7.6B</div>
-        <div class="stat-label">Annual Revenue Lost (US)</div>
+        <div class="stat-num">8×</div>
+        <div class="stat-label">Faster Dispatch</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -898,7 +916,7 @@ st.markdown("""
 st.markdown("""
 <section class="aq-section">
     <div class="section-label">The Challenge</div>
-    <h2 class="section-title">Field teams search in the dark, <br>every hour counts.</h2>
+    <h2 class="section-title">Field teams search in the dark—<br>every hour counts.</h2>
     <div class="problem-grid">
         <div class="problem-card">
             <div class="pcard-icon">🔍</div>
@@ -913,7 +931,7 @@ st.markdown("""
         <div class="problem-card">
             <div class="pcard-icon">📊</div>
             <div class="pcard-title">Scattered Data</div>
-            <div class="pcard-text">GIS, billing, and SCADA data sit in silos, insights never reach the field as actionable intelligence.</div>
+            <div class="pcard-text">GIS, billing, and SCADA data sit in silos—insights never reach the field as actionable intelligence.</div>
         </div>
         <div class="problem-card">
             <div class="pcard-icon">💰</div>
@@ -937,13 +955,22 @@ st.markdown("""
 <section class="aq-section-sm">
     <div class="section-label">Upload & Analyze</div>
     <div class="section-title-sm">Drop your telemetry data</div>
-    <div class="section-sub">CSV · JSON · GeoJSON · TXT etc. large files sampled to first 6 rows</div>
+    <div class="section-sub">CSV · JSON · GeoJSON · TXT — large files sampled to first 6 rows</div>
 </section>
 """, unsafe_allow_html=True)
 
+# Track uploader key in session state so we can reset it programmatically
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = 0
+
 col_left, col_center, col_right = st.columns([1, 2, 1])
 with col_center:
-    uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True, label_visibility="collapsed")
+    uploaded_files = st.file_uploader(
+        "Upload files",
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key=f"uploader_{st.session_state['uploader_key']}"
+    )
 
     oversized_detected = False
     staged_count = 0
@@ -957,7 +984,6 @@ with col_center:
             Works for CSV, TSV, TXT, GeoJSON, and plain JSON (line-delimited).
             For binary/non-line-based formats falls back to a raw byte cap."""
             raw = file.getbuffer()
-            # Try line-based sampling for text formats
             ext = os.path.splitext(file.name)[1].lower()
             if ext in (".csv", ".tsv", ".txt", ".geojson", ".json", ".ndjson"):
                 try:
@@ -967,7 +993,6 @@ with col_center:
                     return sampled.encode("utf-8")
                 except Exception:
                     pass
-            # Fallback: raw byte cap to CUSTOM_KB_LIMIT
             return bytes(raw)[: CUSTOM_KB_LIMIT * 1024]
 
         for file in uploaded_files:
@@ -980,7 +1005,6 @@ with col_center:
             else:
                 data_to_write = bytes(file.getbuffer())
 
-            # Write-then-replace to avoid Windows file-lock PermissionError
             try:
                 fd, tmp_path = tempfile.mkstemp(dir="sample_data")
                 try:
@@ -1002,6 +1026,17 @@ with col_center:
                 st.info(f"✂️ Large file(s) sampled to first 6 lines: {', '.join(sampled_files)}")
             st.success(f"✓ Successfully staged {staged_count} file(s)")
 
+    # Clear uploaded files button — resets the uploader widget
+    if uploaded_files:
+        if st.button("✕  Clear uploaded files", use_container_width=True):
+            st.session_state["uploader_key"] += 1
+            # Also remove staged files from disk
+            if os.path.exists("sample_data"):
+                for f in os.listdir("sample_data"):
+                    try: os.remove(os.path.join("sample_data", f))
+                    except: pass
+            st.rerun()
+
 # ── ENGINE ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <section class="aq-section-sm" style="padding-top: 0;">
@@ -1019,21 +1054,15 @@ with col_center:
         else:
             st.info("⚙️ Processing telemetry data and analyzing anomalies...")
             with st.spinner("Running diagnostic engine..."):
-                # Clear previous results so output reflects the current upload only
-                _clear_conn = sqlite3.connect("mock_utility.db")
-                _clear_conn.execute("DELETE FROM triage_results")
-                _clear_conn.commit()
-                _clear_conn.close()
                 engine_status = run_nightly_triage()
             if engine_status and engine_status.get("status") == "unsuitable":
                 st.error("✗ Data validation failed. Please check file format and structure.")
             elif engine_status and engine_status.get("status") == "malformed_json":
                 st.error("✗ JSON parsing error. Please verify your JSON files are valid.")
             else:
-                st.cache_data.clear()
                 st.rerun()
 
-    # ── REFRESH ───────────────────────────────────────────────────────────────────
+# ── REFRESH ───────────────────────────────────────────────────────────────────
 conn = sqlite3.connect("mock_utility.db")
 df_all = pd.read_sql_query("SELECT * FROM triage_results WHERE status != 'INSPECTED'", conn)
 conn.close()
@@ -1082,33 +1111,56 @@ if not df_all.empty:
 
     with col_map:
         st.markdown('<div class="map-card"><div class="map-card-title">📍 Risk Distribution Map</div>', unsafe_allow_html=True)
-        valid_coords = df_all.dropna(subset=['lat', 'lon'])
-        if not valid_coords.empty:
-            map_center = [valid_coords['lat'].mean(), valid_coords['lon'].mean()]
+
+        # Map shows ALL results with valid coords (including CLEAR) — not just queue items
+        _map_conn = sqlite3.connect("mock_utility.db")
+        df_map = pd.read_sql_query("SELECT * FROM triage_results WHERE lat IS NOT NULL AND lon IS NOT NULL", _map_conn)
+        _map_conn.close()
+
+        if df_map.empty:
+            st.info("No coordinate data available to map.")
         else:
-            map_center = [0, 0]
-        m = folium.Map(location=map_center, zoom_start=13, tiles="CartoDB positron")
+            # Fit map to the actual bounds of the data
+            lat_min, lat_max = df_map['lat'].min(), df_map['lat'].max()
+            lon_min, lon_max = df_map['lon'].min(), df_map['lon'].max()
+            map_center = [(lat_min + lat_max) / 2, (lon_min + lon_max) / 2]
 
-        for _, row in df_all.iterrows():
-            if pd.isna(row['lat']) or pd.isna(row['lon']): continue
-            if row['risk_score'] > 0.80:   marker_color = "red"
-            elif row['risk_score'] > 0.50: marker_color = "orange"
-            else:                          marker_color = "green"
+            # Pick zoom based on coordinate spread — tighter data = higher zoom
+            lat_span = lat_max - lat_min
+            lon_span = lon_max - lon_min
+            max_span = max(lat_span, lon_span)
+            if max_span < 0.01:   zoom = 15
+            elif max_span < 0.05: zoom = 14
+            elif max_span < 0.15: zoom = 13
+            elif max_span < 0.5:  zoom = 12
+            elif max_span < 2.0:  zoom = 10
+            else:                 zoom = 8
 
-            popup_html = (
-                f"<div style=\"font-family:'DM Sans',sans-serif;font-size:13px;color:#0f1419;\">"
-                f"<strong>{row['junction_id']}</strong><br>"
-                f"Zone: {row['zone_id']}<br>"
-                f"Risk: {row['risk_score']:.0%}</div>"
-            )
-            folium.Marker(
-                location=[row["lat"], row["lon"]],
-                popup=folium.Popup(popup_html, max_width=200),
-                tooltip=f"{row['junction_id']} ({row['risk_score']:.0%})",
-                icon=folium.Icon(color=marker_color, icon="tint", prefix="fa")
-            ).add_to(m)
+            m = folium.Map(location=map_center, zoom_start=zoom, tiles="CartoDB positron")
 
-        st_folium(m, height=440, use_container_width=True)
+            for _, row in df_map.iterrows():
+                score = row['risk_score']
+                if score > 0.80:   marker_color = "red"
+                elif score > 0.50: marker_color = "orange"
+                else:              marker_color = "green"
+
+                status_label = "INSPECTED" if row['status'] == 'INSPECTED' else (
+                    "Critical" if score > 0.80 else "Watch" if score > 0.50 else "Clear"
+                )
+                popup_html = (
+                    f"<div style=\"font-family:'DM Sans',sans-serif;font-size:13px;color:#0f1419;\">"
+                    f"<strong>{row['junction_id']}</strong><br>"
+                    f"Zone: {row['zone_id']}<br>"
+                    f"Risk: {score:.0%} — {status_label}</div>"
+                )
+                folium.Marker(
+                    location=[row["lat"], row["lon"]],
+                    popup=folium.Popup(popup_html, max_width=220),
+                    tooltip=f"{row['junction_id']} ({score:.0%})",
+                    icon=folium.Icon(color=marker_color, icon="tint", prefix="fa")
+                ).add_to(m)
+
+            st_folium(m, height=440, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_exports:
@@ -1139,6 +1191,16 @@ if not df_all.empty:
                 mime="application/pdf",
                 use_container_width=True
             )
+
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="export-card-title" style="margin-bottom:8px;">🗄️ Archive & Clear</div>', unsafe_allow_html=True)
+        st.markdown('<div class="export-card-desc">Save current results to archive and reset the queue for a new analysis run.</div>', unsafe_allow_html=True)
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        if st.button("⬆  Archive & Clear Queue", use_container_width=True, key="archive_btn"):
+            do_archive_and_clear()
+            st.session_state["uploader_key"] += 1   # also reset the file uploader
+            st.success("✓ Results archived to db_archive/. Queue cleared.")
+            st.rerun()
 
     st.markdown("<div style='height: 48px'></div>", unsafe_allow_html=True)
 
@@ -1201,6 +1263,24 @@ if not df_all.empty:
                     conn.close()
                     st.cache_data.clear()
                     st.rerun()
+        
+        st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+            
+            # 1. Quickly check the database to see if any items are actually in the archive
+        conn = sqlite3.connect("mock_utility.db")
+        archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
+        conn.close()
+
+            # 2. Only show the button if the archive has 1 or more items in it
+        if archived_count > 0:
+            if st.button(f"🗑️ Clear Inspected Archive ({archived_count})", use_container_width=True):
+                conn = sqlite3.connect("mock_utility.db")
+                # Permanently delete the inspected rows from the database
+                conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
+                conn.commit()
+                conn.close()
+                st.cache_data.clear()
+                st.rerun()
 
 else:
     # Empty state
