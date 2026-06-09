@@ -695,7 +695,11 @@ button[data-testid="baseButton-primary"]:hover {
 }
 
 /* ── FILE UPLOADER ────────────────────────────────────────────── */
+/* Hide Streamlit's default size hint (shows platform max, not our limit) */
 .stFileUploader small { display: none !important; }
+.stFileUploader [data-testid="stFileUploadDropzone"] small { display: none !important; }
+[data-testid="stFileUploaderDropzoneInstructions"] small,
+[data-testid="stFileUploaderDropzoneInstructions"] span[class*="fileSize"] { display: none !important; }
 
 .stFileUploader [data-testid="stFileUploadDropzone"] {
     background: rgba(56,189,248,0.03) !important;
@@ -933,7 +937,7 @@ st.markdown("""
 <section class="aq-section-sm">
     <div class="section-label">Upload & Analyze</div>
     <div class="section-title-sm">Drop your telemetry data</div>
-    <div class="section-sub">CSV · JSON · GeoJSON · TXT — up to 2 KB per file</div>
+    <div class="section-sub">CSV · JSON · GeoJSON · TXT — large files sampled to first 6 rows</div>
 </section>
 """, unsafe_allow_html=True)
 
@@ -942,18 +946,61 @@ with col_center:
     uploaded_files = st.file_uploader("Upload files", accept_multiple_files=True, label_visibility="collapsed")
 
     oversized_detected = False
+    staged_count = 0
+    sampled_files = []
     if uploaded_files:
+        import tempfile, shutil, io
         os.makedirs("sample_data", exist_ok=True)
+
+        def sample_file_bytes(file, max_lines=6):
+            """Return a byte slice of file containing at most max_lines lines.
+            Works for CSV, TSV, TXT, GeoJSON, and plain JSON (line-delimited).
+            For binary/non-line-based formats falls back to a raw byte cap."""
+            raw = file.getbuffer()
+            # Try line-based sampling for text formats
+            ext = os.path.splitext(file.name)[1].lower()
+            if ext in (".csv", ".tsv", ".txt", ".geojson", ".json", ".ndjson"):
+                try:
+                    text = bytes(raw).decode("utf-8", errors="replace")
+                    lines = text.splitlines(keepends=True)
+                    sampled = "".join(lines[:max_lines])
+                    return sampled.encode("utf-8")
+                except Exception:
+                    pass
+            # Fallback: raw byte cap to CUSTOM_KB_LIMIT
+            return bytes(raw)[: CUSTOM_KB_LIMIT * 1024]
+
         for file in uploaded_files:
-            if file.size > CUSTOM_KB_LIMIT * 1024:
-                oversized_detected = True
+            dest = os.path.join("sample_data", file.name)
+            is_oversized = file.size > CUSTOM_KB_LIMIT * 1024
+
+            if is_oversized:
+                data_to_write = sample_file_bytes(file)
+                sampled_files.append(file.name)
             else:
-                with open(os.path.join("sample_data", file.name), "wb") as f:
-                    f.write(file.getbuffer())
+                data_to_write = bytes(file.getbuffer())
+
+            # Write-then-replace to avoid Windows file-lock PermissionError
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir="sample_data")
+                try:
+                    with os.fdopen(fd, "wb") as tmp:
+                        tmp.write(data_to_write)
+                    shutil.move(tmp_path, dest)
+                    staged_count += 1
+                except Exception:
+                    os.unlink(tmp_path)
+                    raise
+            except PermissionError:
+                st.warning(f"⚠️ Could not write {file.name} — file may be open elsewhere. Close it and retry.")
+                oversized_detected = True
+
         if oversized_detected:
-            st.error("⚠️ Upload aborted: File exceeds the 2 KB security limit.")
+            st.error("⚠️ One or more files could not be written (locked). Close them and retry.")
         else:
-            st.success(f"✓ Successfully staged {len(uploaded_files)} file(s)")
+            if sampled_files:
+                st.info(f"✂️ Large file(s) sampled to first 6 lines: {', '.join(sampled_files)}")
+            st.success(f"✓ Successfully staged {staged_count} file(s)")
 
 # ── ENGINE ────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -967,11 +1014,16 @@ st.markdown("""
 col_left, col_center, col_right = st.columns([1, 2, 1])
 with col_center:
     if st.button("▶  Analyze Now", use_container_width=True):
-        if not uploaded_files or oversized_detected:
+        if not uploaded_files or staged_count == 0:
             st.error("✗ No valid files to process. Please upload telemetry data first.")
         else:
             st.info("⚙️ Processing telemetry data and analyzing anomalies...")
             with st.spinner("Running diagnostic engine..."):
+                # Clear previous results so output reflects the current upload only
+                _clear_conn = sqlite3.connect("mock_utility.db")
+                _clear_conn.execute("DELETE FROM triage_results")
+                _clear_conn.commit()
+                _clear_conn.close()
                 engine_status = run_nightly_triage()
             if engine_status and engine_status.get("status") == "unsuitable":
                 st.error("✗ Data validation failed. Please check file format and structure.")
@@ -981,7 +1033,7 @@ with col_center:
                 st.cache_data.clear()
                 st.rerun()
 
-# ── REFRESH ───────────────────────────────────────────────────────────────────
+    # ── REFRESH ───────────────────────────────────────────────────────────────────
 conn = sqlite3.connect("mock_utility.db")
 df_all = pd.read_sql_query("SELECT * FROM triage_results WHERE status != 'INSPECTED'", conn)
 conn.close()
@@ -1030,7 +1082,12 @@ if not df_all.empty:
 
     with col_map:
         st.markdown('<div class="map-card"><div class="map-card-title">📍 Risk Distribution Map</div>', unsafe_allow_html=True)
-        m = folium.Map(location=[42.283, -71.226], zoom_start=13, tiles="CartoDB positron")
+        valid_coords = df_all.dropna(subset=['lat', 'lon'])
+        if not valid_coords.empty:
+            map_center = [valid_coords['lat'].mean(), valid_coords['lon'].mean()]
+        else:
+            map_center = [0, 0]
+        m = folium.Map(location=map_center, zoom_start=13, tiles="CartoDB positron")
 
         for _, row in df_all.iterrows():
             if pd.isna(row['lat']) or pd.isna(row['lon']): continue
@@ -1096,7 +1153,17 @@ if not df_all.empty:
 
     pad_l, col_queue, pad_r = st.columns([0.05, 1, 0.05])
     with col_queue:
-        queue_df = df_all.sort_values("risk_score", ascending=False)
+        # Only show actionable items in the queue — Clear zones don't need dispatch
+        queue_df = df_all[df_all['risk_score'] > 0.50].sort_values("risk_score", ascending=False)
+
+        if queue_df.empty:
+            st.markdown("""
+            <div style="text-align:center; padding: 48px 20px; color: #4ade80;">
+                <div style="font-size: 32px; margin-bottom: 12px;">✓</div>
+                <div style="font-family:'Syne',sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 8px;">All Clear</div>
+                <div style="font-size: 13px; color: #475569;">No critical or watch-list zones detected in this dataset.</div>
+            </div>
+            """, unsafe_allow_html=True)
 
         for idx, row in queue_df.iterrows():
             score = row["risk_score"]

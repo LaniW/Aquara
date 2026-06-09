@@ -1,0 +1,5 @@
+Location_Code,Zone,Latitude,Longitude,Leakage_Flag,Pressure_PSI,Flow_Rate_Lmin,db_Level,Classification_Guess,Anomaly_Reason
+SYD-CRIT-01,Sydney_CBD,-33.8688,151.2093,1,28.5,45.0,60.0,,Main pipeline rupture detected
+SYD-WATCH-02,Surry_Hills,-33.8833,151.2118,0,52.1,35.0,40.0,Traffic Noise,Minor pressure fluctuation
+SYD-CRIT-03,Bondi_Beach,-33.8915,151.2767,0,62.0,68.5,45.0,,High continuous flow rate at night
+SYD-CLEAR-04,Manly_Grid,-33.7963,151.2825,0,65.2,15.5,30.0,Ambient,All systems nominal

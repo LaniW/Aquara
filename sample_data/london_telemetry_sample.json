@@ -1,0 +1,47 @@
+{
+  "dataset_name": "London_Grid_Telemetry_Test",
+  "timestamp": "2026-06-09T18:00:00Z",
+  "readings": [
+    {
+      "location_code": "LDN-Crit-01",
+      "zone": "Westminster_Sector",
+      "latitude": 51.4975,
+      "longitude": -0.1357,
+      "leakage_flag": 1,
+      "pressure_psi": 22.0,
+      "notes": "Main pipeline rupture detected via SCADA."
+    },
+    {
+      "location_code": "LDN-Watch-02",
+      "zone": "Camden_District",
+      "latitude": 51.5455,
+      "longitude": -0.1426,
+      "leakage_flag": 0,
+      "pressure_psi": 45.5,
+      "notes": "Pressure anomaly flagged. Below normal 65 PSI baseline."
+    },
+    {
+      "location_code": "LDN-Clear-03",
+      "zone": "Islington_Grid",
+      "latitude": 51.5416,
+      "longitude": -0.1022,
+      "leakage_flag": 0,
+      "pressure_psi": 68.2,
+      "flow_rate_lmin": 24.5,
+      "db_level": 35.0,
+      "classification_guess": "Traffic Noise",
+      "notes": "All telemetry validating as nominal."
+    },
+    {
+      "location_code": "LDN-Crit-04",
+      "zone": "Greenwich_Nodes",
+      "latitude": 51.4826,
+      "longitude": 0.0077,
+      "leakage_flag": 0,
+      "pressure_psi": 64.2,
+      "db_level": 82.0,
+      "classification_guess": "Continuous Hiss",
+      "notes": "Severe acoustic variance recorded by hardware nodes."
+    }
+  ]
+}
