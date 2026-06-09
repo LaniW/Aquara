@@ -1161,7 +1161,10 @@ if not df_all.empty:
                 ).add_to(m)
 
             # The dynamic key forces the browser to redraw the map from scratch whenever an item is cleared
-        st_folium(m, height=440, use_container_width=True, key=f"risk_map_{len(df_all)}")
+        # 🌟 FIX: Dynamic key forces the map to redraw completely so old pins disappear!
+        map_key = f"risk_map_{len(df_all)}_{df_all['risk_score'].sum()}"
+        st_folium(m, height=440, use_container_width=True, key=map_key)
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_exports:
@@ -1264,24 +1267,27 @@ if not df_all.empty:
                     conn.close()
                     st.cache_data.clear()
                     st.rerun()
-        
-        st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
-            
-            # 1. Quickly check the database to see if any items are actually in the archive
-        conn = sqlite3.connect("mock_utility.db")
-        archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
-        conn.close()
 
-            # 2. Only show the button if the archive has 1 or more items in it
-        if archived_count > 0:
-            if st.button(f"🗑️ Clear Inspected Archive ({archived_count})", use_container_width=True):
+        # 🌟 FIX: NEW ARCHIVE CLEAR BUTTON 🌟
+                st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+                
+                # Check if the DB has any items actively marked as 'INSPECTED'
                 conn = sqlite3.connect("mock_utility.db")
-                # Permanently delete the inspected rows from the database
-                conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
-                conn.commit()
+                try:
+                    archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
+                except Exception:
+                    archived_count = 0
                 conn.close()
-                st.cache_data.clear()
-                st.rerun()
+
+                # If they exist, display the dedicated purge button!
+                if archived_count > 0:
+                    if st.button(f"🗑️ Clear Inspected Archive ({archived_count} Items)", use_container_width=True):
+                        conn = sqlite3.connect("mock_utility.db")
+                        conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
+                        conn.commit()
+                        conn.close()
+                        st.cache_data.clear()
+                        st.rerun()
 
 else:
     # Empty state
