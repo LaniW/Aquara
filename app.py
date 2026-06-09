@@ -1160,7 +1160,8 @@ if not df_all.empty:
                     icon=folium.Icon(color=marker_color, icon="tint", prefix="fa")
                 ).add_to(m)
 
-            st_folium(m, height=440, use_container_width=True)
+            # The dynamic key forces the browser to redraw the map from scratch whenever an item is cleared
+        st_folium(m, height=440, use_container_width=True, key=f"risk_map_{len(df_all)}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_exports:
