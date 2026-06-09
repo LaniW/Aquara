@@ -143,7 +143,8 @@ def run_nightly_triage():
     conn = sqlite3.connect("mock_utility.db")
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS triage_results (junction_id TEXT, zone_id TEXT, risk_score REAL, lat REAL, lon REAL, explanation TEXT, work_order TEXT, status TEXT)")
-    cursor.execute("DELETE FROM triage_results")
+    # 🌟 FIX: Only delete non-inspected items to clear the old active queue without destroying the archive!
+    cursor.execute("DELETE FROM triage_results WHERE status != 'INSPECTED'")
     processed_count = 0
 
     for idx, row in enumerate(normalized_rows):

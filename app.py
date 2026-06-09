@@ -1269,25 +1269,25 @@ if not df_all.empty:
                     st.rerun()
 
         # 🌟 FIX: NEW ARCHIVE CLEAR BUTTON 🌟
-                st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
                 
                 # Check if the DB has any items actively marked as 'INSPECTED'
-                conn = sqlite3.connect("mock_utility.db")
-                try:
-                    archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
-                except Exception:
-                    archived_count = 0
-                conn.close()
+        conn = sqlite3.connect("mock_utility.db")
+        try:
+            archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
+        except Exception:
+            archived_count = 0
+        conn.close()
 
                 # If they exist, display the dedicated purge button!
-                if archived_count > 0:
-                    if st.button(f"🗑️ Clear Inspected Archive ({archived_count} Items)", use_container_width=True):
-                        conn = sqlite3.connect("mock_utility.db")
-                        conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
-                        conn.commit()
-                        conn.close()
-                        st.cache_data.clear()
-                        st.rerun()
+        if archived_count > 0:
+            if st.button(f"🗑️ Clear Inspected Archive ({archived_count} Items)", use_container_width=True):
+                conn = sqlite3.connect("mock_utility.db")
+                conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
+                conn.commit()
+                conn.close()
+                st.cache_data.clear()
+                st.rerun()
 
 else:
     # Empty state
