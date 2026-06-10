@@ -124,9 +124,6 @@ def do_clear_archive():
                 pass
 
 def wipe_db_on_fresh_load():
-    """Clear the live table on a genuine new browser session (not on reruns).
-    Uses st.session_state so it only fires once per session, preventing stale
-    rows from a previous analysis appearing in the queue or map.""",
     if "session_initialised" not in st.session_state:
         conn = sqlite3.connect(DB_PATH)
         conn.execute("DELETE FROM triage_results")
@@ -1326,9 +1323,6 @@ st.markdown("""
 <div class="footer-strip">
     <div class="footer-brand">AQUARA</div>
     <div class="footer-links">
-        <a class="footer-link" href="#">Docs</a>
-        <a class="footer-link" href="#">API</a>
-        <a class="footer-link" href="#">Support</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
