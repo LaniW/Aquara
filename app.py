@@ -910,12 +910,12 @@ st.markdown("""
         <div class="stat-label">Gallons Lost / yr</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">94%</div>
-        <div class="stat-label">Detection Accuracy</div>
+        <div class="stat-num">2 Mins</div>
+        <div class="stat-label">Average Water Main Break</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">8×</div>
-        <div class="stat-label">Faster Dispatch</div>
+        <div class="stat-num">$7.6B</div>
+        <div class="stat-label">Annual Revenue Lost (US)</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -949,7 +949,7 @@ st.markdown("""
         <div class="problem-card">
             <div class="pcard-icon">📊</div>
             <div class="pcard-title">Scattered Data</div>
-            <div class="pcard-text">GIS, billing, and SCADA data sit in silos—insights never reach the field as actionable intelligence.</div>
+            <div class="pcard-text">GIS, billing, and SCADA data sit in silos, insights never reach the field as actionable intelligence.</div>
         </div>
         <div class="problem-card">
             <div class="pcard-icon">💰</div>
@@ -973,7 +973,7 @@ st.markdown("""
 <section class="aq-section-sm">
     <div class="section-label">Upload & Analyze</div>
     <div class="section-title-sm">Drop your telemetry data</div>
-    <div class="section-sub">CSV · JSON · GeoJSON · TXT — large files sampled to first 6 rows</div>
+    <div class="section-sub">CSV · JSON · GeoJSON · TXT etc. large files sampled to first 6 rows</div>
 </section>
 """, unsafe_allow_html=True)
 
