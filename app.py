@@ -103,8 +103,8 @@ def ensure_db():
     conn.close()
 
 def do_archive_and_clear():
-    """Copy current DB to db_archive/ then wipe the live table. Called explicitly
-    by the Clear & Archive button — never runs automatically on rerun."""
+    """Copy current DB to db_archive/ (timestamped) then wipe the live table.
+    Called explicitly by the Archive & Clear Queue button only.""",
     os.makedirs(ARCHIVE_DIR, exist_ok=True)
     archive_path = os.path.join(ARCHIVE_DIR, "triage_results_last_run.db")
     if os.path.exists(DB_PATH):
@@ -114,7 +114,28 @@ def do_archive_and_clear():
     conn.commit()
     conn.close()
 
+def do_clear_archive():
+    """Delete all files inside db_archive/ without removing the folder.""",
+    if os.path.exists(ARCHIVE_DIR):
+        for f in os.listdir(ARCHIVE_DIR):
+            try:
+                os.remove(os.path.join(ARCHIVE_DIR, f))
+            except Exception:
+                pass
+
+def wipe_db_on_fresh_load():
+    """Clear the live table on a genuine new browser session (not on reruns).
+    Uses st.session_state so it only fires once per session, preventing stale
+    rows from a previous analysis appearing in the queue or map.""",
+    if "session_initialised" not in st.session_state:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM triage_results")
+        conn.commit()
+        conn.close()
+        st.session_state["session_initialised"] = True
+
 ensure_db()
+wipe_db_on_fresh_load()
 
 CUSTOM_KB_LIMIT = 2
 
@@ -892,12 +913,12 @@ st.markdown("""
         <div class="stat-label">Gallons Lost / yr</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">2 Mins</div>
-        <div class="stat-label">Average Water Main Break</div>
+        <div class="stat-num">94%</div>
+        <div class="stat-label">Detection Accuracy</div>
     </div>
     <div class="stat-cell">
-        <div class="stat-num">$7.6B</div>
-        <div class="stat-label">Annual Revenue Lost (US)</div>
+        <div class="stat-num">8×</div>
+        <div class="stat-label">Faster Dispatch</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -916,7 +937,7 @@ st.markdown("""
 st.markdown("""
 <section class="aq-section">
     <div class="section-label">The Challenge</div>
-    <h2 class="section-title">Field teams search in the dark, <br>every hour counts.</h2>
+    <h2 class="section-title">Field teams search in the dark—<br>every hour counts.</h2>
     <div class="problem-grid">
         <div class="problem-card">
             <div class="pcard-icon">🔍</div>
@@ -931,7 +952,7 @@ st.markdown("""
         <div class="problem-card">
             <div class="pcard-icon">📊</div>
             <div class="pcard-title">Scattered Data</div>
-            <div class="pcard-text">GIS, billing, and SCADA data sit in silos, insights never reach the field as actionable intelligence.</div>
+            <div class="pcard-text">GIS, billing, and SCADA data sit in silos—insights never reach the field as actionable intelligence.</div>
         </div>
         <div class="problem-card">
             <div class="pcard-icon">💰</div>
@@ -955,7 +976,7 @@ st.markdown("""
 <section class="aq-section-sm">
     <div class="section-label">Upload & Analyze</div>
     <div class="section-title-sm">Drop your telemetry data</div>
-    <div class="section-sub">CSV · JSON · GeoJSON · TXT etc. large files sampled to first 6 rows</div>
+    <div class="section-sub">CSV · JSON · GeoJSON · TXT — large files sampled to first 6 rows</div>
 </section>
 """, unsafe_allow_html=True)
 
@@ -1026,11 +1047,15 @@ with col_center:
                 st.info(f"✂️ Large file(s) sampled to first 6 lines: {', '.join(sampled_files)}")
             st.success(f"✓ Successfully staged {staged_count} file(s)")
 
-    # Clear uploaded files button — resets the uploader widget
-    if uploaded_files:
-        if st.button("✕  Clear uploaded files", use_container_width=True):
+    # Clear uploaded files — visible whenever files are staged on disk,
+    # not just when the widget still holds them (survives reruns)
+    staged_on_disk = bool(
+        os.path.exists("sample_data") and
+        [f for f in os.listdir("sample_data") if not f.startswith('.')]
+    )
+    if uploaded_files or staged_on_disk:
+        if st.button("\u2715  Clear uploaded files", use_container_width=True):
             st.session_state["uploader_key"] += 1
-            # Also remove staged files from disk
             if os.path.exists("sample_data"):
                 for f in os.listdir("sample_data"):
                     try: os.remove(os.path.join("sample_data", f))
@@ -1160,11 +1185,7 @@ if not df_all.empty:
                     icon=folium.Icon(color=marker_color, icon="tint", prefix="fa")
                 ).add_to(m)
 
-            # The dynamic key forces the browser to redraw the map from scratch whenever an item is cleared
-        # 🌟 FIX: Dynamic key forces the map to redraw completely so old pins disappear!
-        map_key = f"risk_map_{len(df_all)}_{df_all['risk_score'].sum()}"
-        st_folium(m, height=440, use_container_width=True, key=map_key)
-        
+            st_folium(m, height=440, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_exports:
@@ -1202,7 +1223,8 @@ if not df_all.empty:
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
         if st.button("⬆  Archive & Clear Queue", use_container_width=True, key="archive_btn"):
             do_archive_and_clear()
-            st.session_state["uploader_key"] += 1   # also reset the file uploader
+            st.session_state["uploader_key"] += 1
+            st.session_state.pop("session_initialised", None)  # allow next load to wipe fresh
             st.success("✓ Results archived to db_archive/. Queue cleared.")
             st.rerun()
 
@@ -1268,27 +1290,6 @@ if not df_all.empty:
                     st.cache_data.clear()
                     st.rerun()
 
-        # 🌟 FIX: NEW ARCHIVE CLEAR BUTTON 🌟
-        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-                
-                # Check if the DB has any items actively marked as 'INSPECTED'
-        conn = sqlite3.connect("mock_utility.db")
-        try:
-            archived_count = pd.read_sql_query("SELECT COUNT(*) FROM triage_results WHERE status = 'INSPECTED'", conn).iloc[0,0]
-        except Exception:
-            archived_count = 0
-        conn.close()
-
-                # If they exist, display the dedicated purge button!
-        if archived_count > 0:
-            if st.button(f"🗑️ Clear Inspected Archive ({archived_count} Items)", use_container_width=True):
-                conn = sqlite3.connect("mock_utility.db")
-                conn.execute("DELETE FROM triage_results WHERE status = 'INSPECTED'")
-                conn.commit()
-                conn.close()
-                st.cache_data.clear()
-                st.rerun()
-
 else:
     # Empty state
     st.markdown("""
@@ -1298,6 +1299,27 @@ else:
         <div class="empty-text">Upload telemetry data and run the analysis to see your prioritized leak triage queue.</div>
     </div>
     """, unsafe_allow_html=True)
+
+# ── ARCHIVE MANAGEMENT ──────────────────────────────────────────────────────────────────────────────────
+# Always visible — shows only when archive folder has content
+_archive_has_data = (
+    os.path.exists(ARCHIVE_DIR) and
+    any(not f.startswith(".") for f in os.listdir(ARCHIVE_DIR))
+)
+if _archive_has_data:
+    st.markdown("""
+<section class="aq-section-sm" style="padding-top: 0; padding-bottom: 24px;">
+    <div class="section-label">Archive</div>
+    <div class="section-title-sm">Saved Runs</div>
+    <div class="section-sub">Previous analysis saved in db_archive/ — clear when no longer needed</div>
+</section>
+""", unsafe_allow_html=True)
+    pad_l, col_arc, pad_r = st.columns([1, 2, 1])
+    with col_arc:
+        if st.button("🗑  Clear Archive", use_container_width=True, key="clear_archive_btn"):
+            do_clear_archive()
+            st.success("✓ Archive cleared.")
+            st.rerun()
 
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("""
